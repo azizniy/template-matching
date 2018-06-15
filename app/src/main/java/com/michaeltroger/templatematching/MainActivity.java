@@ -1,26 +1,26 @@
 package com.michaeltroger.templatematching;
 
+import android.app.Activity;
+import android.os.Bundle;
+import android.util.Log;
+import android.view.SurfaceView;
+import android.view.WindowManager;
+
 import org.opencv.android.BaseLoaderCallback;
+import org.opencv.android.CameraBridgeViewBase;
 import org.opencv.android.CameraBridgeViewBase.CvCameraViewFrame;
+import org.opencv.android.CameraBridgeViewBase.CvCameraViewListener2;
 import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
 import org.opencv.android.Utils;
 import org.opencv.core.Core;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
-import org.opencv.android.CameraBridgeViewBase;
-import org.opencv.android.CameraBridgeViewBase.CvCameraViewListener2;
 import org.opencv.core.Point;
 import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
-
-import android.app.Activity;
-import android.os.Bundle;
-import android.util.Log;
-import android.view.SurfaceView;
-import android.view.WindowManager;
 
 import java.io.IOException;
 
@@ -191,13 +191,20 @@ public class MainActivity extends Activity implements CvCameraViewListener2 {
         int result_rows = img.rows() - templ.rows() + 1;
         result.create(result_rows, result_cols, CvType.CV_32FC1);
 
+        //Log.d("TAG", "AFTER " + img.cols() + " " + templ.cols());
         /// Do the Matching and Normalize
-        int match_method = Imgproc.TM_SQDIFF;
+        //int match_method = Imgproc.TM_SQDIFF;
+        int match_method = Imgproc.TM_CCORR_NORMED;
         Imgproc.matchTemplate(img, templ, result, match_method);
 
-        Core.normalize(result, result, 0, 1, Core.NORM_MINMAX, -1, new Mat());
+        //Log.d("TAG", "AFTER " + String.valueOf(result.dump()));
+
+
 
         Core.MinMaxLocResult minMaxLocResult = Core.minMaxLoc(result, new Mat());
+        //http://answers.opencv.org/question/77543/how-to-reduce-false-detection-of-template-matching/
+        //remove normalize(result, result, 0, ... otherwise you will see always a perfect match
+       // Core.normalize(result, result, 0, 1, Core.NORM_MINMAX, -1, new Mat());
 
         Point matchLoc = null;
         /// For SQDIFF and SQDIFF_NORMED, the best matches are lower values. For all the other methods, the higher the better
@@ -210,8 +217,15 @@ public class MainActivity extends Activity implements CvCameraViewListener2 {
             matchLoc = minMaxLocResult.maxLoc;
         }
 
-        Imgproc.rectangle(img_display, matchLoc, new Point(matchLoc.x + templ.cols(), matchLoc.y + templ.rows() ), new Scalar(255,0,0) );
-        Imgproc.rectangle(result, matchLoc, new Point(matchLoc.x + templ.cols(), matchLoc.y + templ.rows()), new Scalar(255, 0, 0));
+        Log.d("TAG", "MINMAX " + minMaxLocResult.minVal + " " +minMaxLocResult.maxVal );
+
+        //threshold to accept match or deny
+        double threshold = 0.8; //value between 0 and 1. 1 is a perfect match
+        if(minMaxLocResult.maxVal > threshold){
+            Imgproc.rectangle(img_display, matchLoc, new Point(matchLoc.x + templ.cols(), matchLoc.y + templ.rows() ), new Scalar(255,0,0) );
+            Imgproc.rectangle(result, matchLoc, new Point(matchLoc.x + templ.cols(), matchLoc.y + templ.rows()), new Scalar(255, 0, 0));
+
+        }
 
         return img_display;
     }
